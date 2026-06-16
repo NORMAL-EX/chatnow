@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoreHorizontal, Pencil, Undo2, MessageSquare, SmilePlus } from 'lucide-react'
+import {
+  MoreHorizontal,
+  Pencil,
+  Undo2,
+  MessageSquare,
+  SmilePlus,
+  Reply,
+  Copy,
+  AtSign,
+  UserRound,
+} from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,6 +23,7 @@ import {
   MenuSeparator,
 } from '@/components/ui/menu'
 import { Popover, PopoverTrigger, PopoverPopup } from '@/components/ui/popover'
+import { ContextMenu, useContextMenu, type CtxItem } from '@/components/ui/context-menu'
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
 import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -23,10 +34,35 @@ import type { Message } from '@/lib/types'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢', '🔥', '👀']
 
+/** Identity badge shown next to a sender's name. */
+function RoleBadge({ role }: { role?: string }) {
+  if (role === 'super_admin')
+    return (
+      <Badge className="h-4 border-transparent bg-amber-500/15 px-1 text-[10px] text-amber-600 dark:text-amber-400">
+        系统管理员
+      </Badge>
+    )
+  if (role === 'admin')
+    return (
+      <Badge className="h-4 border-transparent bg-sky-500/15 px-1 text-[10px] text-sky-600 dark:text-sky-400">
+        管理员
+      </Badge>
+    )
+  if (role === 'bot')
+    return <Badge className="h-4 border-transparent bg-primary/15 px-1 text-[10px] text-primary">AI</Badge>
+  return (
+    <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground">
+      成员
+    </Badge>
+  )
+}
+
 export function MessageItem({ message }: { message: Message }) {
   const { user } = useAuth()
-  const { toggleReaction, recallMessage, editMessage, selectDm } = useChat()
+  const { toggleReaction, recallMessage, editMessage, selectDm, setReplyTo, requestMention } =
+    useChat()
   const navigate = useNavigate()
+  const ctx = useContextMenu()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.content)
   const [revealed, setRevealed] = useState<string | null>(null)
@@ -76,8 +112,67 @@ export function MessageItem({ message }: { message: Message }) {
     }
   }
 
+  const startReply = () =>
+    setReplyTo({
+      id: message.id,
+      author: sender?.nickname || sender?.username || '用户',
+      snippet: message.content || '[图片/空]',
+    })
+  const copyText = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content)
+      toast.success('已复制')
+    } catch {
+      toast.error('复制失败')
+    }
+  }
+
+  // Right-click menu items (role/permission-aware).
+  const ctxItems: CtxItem[] = []
+  if (!gone) {
+    ctxItems.push({ label: '回复', icon: <Reply className="size-4" />, onSelect: startReply })
+    ctxItems.push({ label: '复制文本', icon: <Copy className="size-4" />, onSelect: copyText })
+  }
+  if (sender && !isOwn && sender.role !== 'bot') {
+    ctxItems.push({
+      label: '发私信',
+      icon: <MessageSquare className="size-4" />,
+      onSelect: () => selectDm(sender.id),
+      separatorBefore: !gone,
+    })
+    ctxItems.push({
+      label: '@ TA',
+      icon: <AtSign className="size-4" />,
+      onSelect: () => requestMention(sender.username),
+    })
+  }
+  if (sender) {
+    ctxItems.push({
+      label: '查看资料',
+      icon: <UserRound className="size-4" />,
+      onSelect: () => navigate(`/u/${sender.id}`),
+    })
+  }
+  if (canRecall) {
+    ctxItems.push({
+      label: '撤回',
+      icon: <Undo2 className="size-4" />,
+      onSelect: onRecall,
+      destructive: true,
+      separatorBefore: true,
+    })
+  }
+
   return (
-    <div className="group flex gap-3 px-4 py-1.5 hover:bg-muted/40">
+    <div
+      className="group flex gap-3 px-4 py-1.5 hover:bg-muted/40"
+      onContextMenu={(e) => {
+        if (ctxItems.length) ctx.open(e)
+      }}
+    >
+      {ctx.pos && (
+        <ContextMenu x={ctx.pos.x} y={ctx.pos.y} items={ctxItems} onClose={ctx.close} />
+      )}
       <button
         type="button"
         onClick={() => sender && navigate(`/u/${sender.id}`)}
@@ -98,11 +193,7 @@ export function MessageItem({ message }: { message: Message }) {
           >
             {sender?.nickname || sender?.username || '未知用户'}
           </button>
-          {message.is_bot && (
-            <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-              BOT
-            </Badge>
-          )}
+          <RoleBadge role={sender?.role} />
           <span className="text-muted-foreground text-xs">{formatTime(message.created_at)}</span>
           {message.edited && <span className="text-muted-foreground text-xs">(已编辑)</span>}
         </div>

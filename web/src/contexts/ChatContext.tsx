@@ -21,6 +21,7 @@ import type {
 } from '@/lib/types'
 
 type View = { type: 'channel'; id: number } | { type: 'dm'; userId: number }
+export type ReplyTarget = { id: number; author: string; snippet: string }
 
 interface ChatContextType {
   connected: boolean
@@ -47,6 +48,12 @@ interface ChatContextType {
 
   typingUserIds: number[]
   cooldownUntil: number
+
+  replyTo: ReplyTarget | null
+  setReplyTo: (r: ReplyTarget | null) => void
+  pendingMention: string | null
+  requestMention: (username: string) => void
+  clearMention: () => void
 
   selectChannel: (id: number) => void
   selectDm: (userId: number) => void
@@ -98,6 +105,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [mentions, setMentions] = useState<MentionNotice[]>([])
   const [typingUserIds, setTypingUserIds] = useState<number[]>([])
   const [cooldownUntil, setCooldownUntil] = useState(0)
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
+  const [pendingMention, setPendingMention] = useState<string | null>(null)
 
   const viewRef = useRef<View | null>(null)
   viewRef.current = view
@@ -362,8 +371,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .catch(() => {})
   }, [view, refreshConversations])
 
-  const selectChannel = useCallback((id: number) => setView({ type: 'channel', id }), [])
-  const selectDm = useCallback((userId: number) => setView({ type: 'dm', userId }), [])
+  const selectChannel = useCallback((id: number) => {
+    setReplyTo(null)
+    setView({ type: 'channel', id })
+  }, [])
+  const selectDm = useCallback((userId: number) => {
+    setReplyTo(null)
+    setView({ type: 'dm', userId })
+  }, [])
+  const requestMention = useCallback((username: string) => setPendingMention(username), [])
+  const clearMention = useCallback(() => setPendingMention(null), [])
 
   const loadMore = useCallback(() => {
     const v = viewRef.current
@@ -460,6 +477,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     mentionUnread,
     typingUserIds,
     cooldownUntil,
+    replyTo,
+    setReplyTo,
+    pendingMention,
+    requestMention,
+    clearMention,
     selectChannel,
     selectDm,
     loadMore,
