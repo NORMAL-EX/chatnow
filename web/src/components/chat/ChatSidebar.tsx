@@ -67,7 +67,9 @@ export function ChatSidebar({ onSelect }: { onSelect?: () => void }) {
                 </Avatar>
                 <span className="truncate font-medium">{m.nickname || m.username}</span>
                 {m.role === 'bot' && <BotIcon className="size-3.5 text-primary" />}
-                {onlineIds.has(m.id) && <span className="ml-auto size-2 rounded-full bg-success" />}
+                {(onlineIds.has(m.id) || m.role === 'bot') && (
+                  <span className="ml-auto size-2 rounded-full bg-success" />
+                )}
               </button>
             ))}
           </div>
@@ -127,7 +129,7 @@ export function ChatSidebar({ onSelect }: { onSelect?: () => void }) {
                     <AvatarImage src={c.user.avatar_url || undefined} />
                     <AvatarFallback>{initials(c.user.nickname || c.user.username)}</AvatarFallback>
                   </Avatar>
-                  {onlineIds.has(c.user.id) && (
+                  {(onlineIds.has(c.user.id) || c.user.role === 'bot') && (
                     <span className="-bottom-0.5 -right-0.5 absolute size-2.5 rounded-full border-2 border-background bg-success" />
                   )}
                 </div>

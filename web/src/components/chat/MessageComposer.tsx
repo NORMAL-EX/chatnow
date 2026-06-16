@@ -20,8 +20,20 @@ function detectMention(value: string, caret: number) {
 }
 
 export function MessageComposer() {
-  const { view, channels, members, sendMessage, sendDm, sendTyping, cooldownUntil, connected } =
-    useChat()
+  const {
+    view,
+    channels,
+    members,
+    sendMessage,
+    sendDm,
+    sendTyping,
+    cooldownUntil,
+    connected,
+    replyTo,
+    setReplyTo,
+    pendingMention,
+    clearMention,
+  } = useChat()
   const { user } = useAuth()
   const { settings } = useSettings()
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -40,6 +52,19 @@ export function MessageComposer() {
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
   }, [previewUrl])
+
+  // Insert "@username " when a member context-menu requests a mention.
+  useEffect(() => {
+    if (!pendingMention) return
+    setText((t) => `${t}${t && !t.endsWith(' ') ? ' ' : ''}@${pendingMention} `)
+    clearMention()
+    requestAnimationFrame(() => taRef.current?.focus())
+  }, [pendingMention, clearMention])
+
+  // Focus the box when a reply is started.
+  useEffect(() => {
+    if (replyTo) taRef.current?.focus()
+  }, [replyTo])
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const isChannel = view?.type === 'channel'
@@ -117,11 +142,17 @@ export function MessageComposer() {
       setUploading(false)
     }
 
+    if (replyTo) {
+      const q = replyTo.snippet.replace(/\s+/g, ' ').trim().slice(0, 80)
+      content = `> **回复 ${replyTo.author}**：${q}\n\n${content}`
+    }
+
     if (isChannel) sendMessage(content)
     else if (view?.type === 'dm') sendDm(content)
     setText('')
     setImage(null)
     setMention(null)
+    setReplyTo(null)
   }
 
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -175,7 +206,7 @@ export function MessageComposer() {
     return (
       <div className="border-border border-t px-4 py-4 text-center text-destructive text-sm">
         您已被管理员禁言,暂时无法发送消息
-        {!forever && `(至 ${mutedUntil.toLocaleString()})`}
+        {!forever && `（至 ${mutedUntil.toLocaleString()}）`}
       </div>
     )
   }
@@ -207,6 +238,23 @@ export function MessageComposer() {
               {u.role === 'bot' && <span className="ml-auto text-[10px] text-primary">BOT</span>}
             </button>
           ))}
+        </div>
+      )}
+
+      {replyTo && (
+        <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-2 py-1.5">
+          <div className="min-w-0 flex-1 border-primary border-l-2 pl-2">
+            <div className="font-medium text-primary text-xs">回复 {replyTo.author}</div>
+            <div className="truncate text-muted-foreground text-xs">{replyTo.snippet}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReplyTo(null)}
+            aria-label="取消回复"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
         </div>
       )}
 
@@ -271,7 +319,7 @@ export function MessageComposer() {
       </div>
       <div className="mt-1 flex items-center justify-between px-1">
         <span className="text-muted-foreground text-xs">
-          {cooldownLeft > 0 && `冷却中:${cooldownLeft}s`}
+          {cooldownLeft > 0 && `冷却中：${cooldownLeft}s`}
         </span>
         {(tooLong || text.length > maxLen * 0.8) && (
           <span className={`text-xs ${tooLong ? 'text-destructive' : 'text-muted-foreground'}`}>
