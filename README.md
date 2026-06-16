@@ -149,15 +149,3 @@ GET  /api/admin/stats|users|registrations|settings|ai|audit
 PATCH /api/admin/users/:id   DELETE /api/admin/users/:id(super)
 POST /api/admin/registrations/:id/approve|reject   PUT /api/admin/settings   POST /api/admin/ai/test
 ```
-
----
-
-## ✅ 验收对照
-
-1. 前端可起、深浅色三态切换 + 弹出菜单与 Cloud-PE 一致;全站 coss-ui、按钮默认 outline
-2. 注册 →(可选审核)→ 登录 → 大厅发消息,另一浏览器实时收到
-3. 私信互发、未读计数
-4. @某人高亮+通知;@机器人取最近 ≤5000 字上下文并实时回复
-5. 后台改 AI 配置/系统提示词即时生效,「测试连通性」可用
-6. 后台给成员设低频率后超频被拦、前端按钮倒计时
-7. super_admin 改站点标题即时生效、开关注册/审核/封禁/任免管理员;普通用户进不了后台、直接打后台 API 被拒
