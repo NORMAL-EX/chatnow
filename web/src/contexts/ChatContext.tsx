@@ -55,6 +55,8 @@ interface ChatContextType {
   sendDm: (content: string) => void
   editMessage: (id: number, content: string) => Promise<void>
   deleteMessage: (id: number) => Promise<void>
+  recallMessage: (id: number) => Promise<void>
+  recallDm: (id: number) => Promise<void>
   toggleReaction: (id: number, emoji: string) => Promise<void>
   sendTyping: () => void
   refreshChannels: () => Promise<void>
@@ -155,6 +157,34 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               prev.map((x) => (x.id === e.message_id ? { ...x, reactions: e.reactions } : x)),
             )
           }
+          break
+        }
+        case 'message_recalled': {
+          const v = viewRef.current
+          if (v?.type === 'channel' && v.id === e.channel_id) {
+            setMessages((prev) =>
+              prev.map((x) =>
+                x.id === e.message_id
+                  ? { ...x, recalled: true, content: '', recalled_by: e.recalled_by }
+                  : x,
+              ),
+            )
+          }
+          break
+        }
+        case 'dm_recalled': {
+          const partner = e.sender_id === myId ? e.receiver_id : e.sender_id
+          const v = viewRef.current
+          if (v?.type === 'dm' && v.userId === partner) {
+            setDmMessages((prev) =>
+              prev.map((x) =>
+                x.id === e.message_id
+                  ? { ...x, recalled: true, content: '', recalled_by: e.recalled_by }
+                  : x,
+              ),
+            )
+          }
+          void refreshConversationsRef.current()
           break
         }
         case 'dm_message': {
@@ -385,6 +415,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await api.deleteMessage(id)
   }, [])
 
+  const recallMessage = useCallback(async (id: number) => {
+    await api.recallMessage(id)
+  }, [])
+
+  const recallDm = useCallback(async (id: number) => {
+    await api.recallDm(id)
+  }, [])
+
   const toggleReaction = useCallback(async (id: number, emoji: string) => {
     await api.toggleReaction(id, emoji)
   }, [])
@@ -429,6 +467,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sendDm,
     editMessage,
     deleteMessage,
+    recallMessage,
+    recallDm,
     toggleReaction,
     sendTyping,
     refreshChannels,

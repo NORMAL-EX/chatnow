@@ -1,11 +1,13 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Undo2 } from 'lucide-react'
 import { MessageItem } from '@/components/chat/MessageItem'
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { api, ApiError } from '@/lib/api'
+import { toast } from '@/lib/toast'
 import { initials, formatTime, dayLabel } from '@/lib/format'
 import type { DirectMessage } from '@/lib/types'
 
@@ -19,16 +21,73 @@ function DayDivider({ label }: { label: string }) {
   )
 }
 
+function RecallButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="撤回"
+      className="self-end p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+    >
+      <Undo2 className="size-3.5" />
+    </button>
+  )
+}
+
 function DMBubble({ dm }: { dm: DirectMessage }) {
   const { user } = useAuth()
+  const { recallDm } = useChat()
   const navigate = useNavigate()
+  const [revealed, setRevealed] = useState<string | null>(null)
   const mine = dm.sender_id === user?.id
   const sender = dm.sender
+  const isSuper = user?.role === 'super_admin'
+  const isAdmin = isSuper || user?.role === 'admin'
+  const withinWindow = Date.now() - new Date(dm.created_at).getTime() < 40_000
+  const canRecall = !dm.recalled && (isAdmin || (mine && withinWindow))
+
+  const onRecall = async () => {
+    try {
+      await recallDm(dm.id)
+    } catch (e) {
+      toast.error('撤回失败', e instanceof ApiError ? e.message : undefined)
+    }
+  }
+  const onReveal = async () => {
+    try {
+      const { content } = await api.admin.revealDm(dm.id)
+      setRevealed(content)
+    } catch (e) {
+      toast.error('查看失败', e instanceof ApiError ? e.message : undefined)
+    }
+  }
+
+  const body = dm.recalled ? (
+    <span className="text-sm italic opacity-80">
+      此消息已被撤回
+      {isSuper &&
+        (revealed === null ? (
+          <button
+            type="button"
+            onClick={onReveal}
+            className="ml-2 underline not-italic opacity-100 hover:opacity-80"
+          >
+            点击查看
+          </button>
+        ) : (
+          <span className="mt-1 block whitespace-pre-wrap not-italic">{revealed}</span>
+        ))}
+    </span>
+  ) : (
+    <MarkdownContent content={dm.content} />
+  )
+
   if (mine) {
     return (
-      <div className="flex justify-end px-4 py-1">
+      <div className="group flex items-end justify-end gap-1 px-4 py-1">
+        {canRecall && <RecallButton onClick={onRecall} />}
         <div className="max-w-[75%] rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground">
-          <MarkdownContent content={dm.content} />
+          {body}
           <div className="mt-0.5 text-right text-[10px] text-primary-foreground/70">
             {formatTime(dm.created_at)}
           </div>
@@ -37,7 +96,7 @@ function DMBubble({ dm }: { dm: DirectMessage }) {
     )
   }
   return (
-    <div className="flex gap-2 px-4 py-1">
+    <div className="group flex items-end gap-2 px-4 py-1">
       <button type="button" onClick={() => sender && navigate(`/u/${sender.id}`)} className="shrink-0 self-end">
         <Avatar className="size-7">
           <AvatarImage src={sender?.avatar_url || undefined} />
@@ -45,9 +104,10 @@ function DMBubble({ dm }: { dm: DirectMessage }) {
         </Avatar>
       </button>
       <div className="max-w-[75%] rounded-2xl rounded-bl-sm bg-muted px-3 py-2">
-        <MarkdownContent content={dm.content} />
+        {body}
         <div className="mt-0.5 text-[10px] text-muted-foreground">{formatTime(dm.created_at)}</div>
       </div>
+      {canRecall && <RecallButton onClick={onRecall} />}
     </div>
   )
 }

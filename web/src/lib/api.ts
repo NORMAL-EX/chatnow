@@ -133,6 +133,8 @@ export const api = {
   editMessage: (id: number, content: string) =>
     request<Message>('PATCH', `/messages/${id}`, { content }),
   deleteMessage: (id: number) => request<void>('DELETE', `/messages/${id}`),
+  recallMessage: (id: number) => request<void>('POST', `/messages/${id}/recall`),
+  recallDm: (id: number) => request<void>('POST', `/dm-messages/${id}/recall`),
   toggleReaction: (id: number, emoji: string) =>
     request<{ message_id: number; reactions: Message['reactions'] }>(
       'POST',
@@ -191,5 +193,10 @@ export const api = {
       request<{ ok: boolean; message: string; reply?: string }>('POST', '/admin/ai/test'),
     auditLogs: (page = 1) =>
       request<Paginated<AuditLog>>('GET', `/admin/audit?page=${page}`),
+    // Super-admin reveal of recalled content ("点击查看").
+    revealMessage: (id: number) =>
+      request<{ id: number; content: string }>('GET', `/admin/messages/${id}`),
+    revealDm: (id: number) =>
+      request<{ id: number; content: string }>('GET', `/admin/dm-messages/${id}`),
   },
 }

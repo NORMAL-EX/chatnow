@@ -59,15 +59,18 @@ type Channel struct {
 }
 
 type Message struct {
-	ID        uint      `gorm:"primarykey" json:"id"`
-	ChannelID uint      `gorm:"index" json:"channel_id"`
-	SenderID  uint      `gorm:"index" json:"sender_id"`
-	Content   string    `gorm:"type:text" json:"content"`
-	Edited    bool      `gorm:"default:false" json:"edited"`
-	IsBot     bool      `gorm:"default:false" json:"is_bot"`
-	Deleted   bool      `gorm:"index;default:false" json:"deleted"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"-"`
+	ID         uint       `gorm:"primarykey" json:"id"`
+	ChannelID  uint       `gorm:"index" json:"channel_id"`
+	SenderID   uint       `gorm:"index" json:"sender_id"`
+	Content    string     `gorm:"type:text" json:"content"`
+	Edited     bool       `gorm:"default:false" json:"edited"`
+	IsBot      bool       `gorm:"default:false" json:"is_bot"`
+	Deleted    bool       `gorm:"index;default:false" json:"deleted"`
+	Recalled   bool       `gorm:"default:false" json:"recalled"`
+	RecalledBy uint       `json:"recalled_by"`
+	RecalledAt *time.Time `json:"recalled_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"-"`
 }
 
 type DirectMessage struct {
@@ -76,6 +79,9 @@ type DirectMessage struct {
 	ReceiverID uint       `gorm:"index" json:"receiver_id"`
 	Content    string     `gorm:"type:text" json:"content"`
 	ReadAt     *time.Time `json:"read_at"`
+	Recalled   bool       `gorm:"default:false" json:"recalled"`
+	RecalledBy uint       `json:"recalled_by"`
+	RecalledAt *time.Time `json:"recalled_at,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
 }
 
@@ -119,13 +125,15 @@ type MessageDTO struct {
 	ChannelID uint          `json:"channel_id"`
 	SenderID  uint          `json:"sender_id"`
 	Sender    *User         `json:"sender,omitempty"`
-	Content   string        `json:"content"`
-	Edited    bool          `json:"edited"`
-	Deleted   bool          `json:"deleted"`
-	IsBot     bool          `json:"is_bot"`
-	Mentions  []uint        `json:"mentions"`
-	Reactions []ReactionDTO `json:"reactions"`
-	CreatedAt time.Time     `json:"created_at"`
+	Content    string        `json:"content"`
+	Edited     bool          `json:"edited"`
+	Deleted    bool          `json:"deleted"`
+	Recalled   bool          `json:"recalled"`
+	RecalledBy uint          `json:"recalled_by"`
+	IsBot      bool          `json:"is_bot"`
+	Mentions   []uint        `json:"mentions"`
+	Reactions  []ReactionDTO `json:"reactions"`
+	CreatedAt  time.Time     `json:"created_at"`
 }
 
 type DirectMessageDTO struct {
@@ -135,6 +143,8 @@ type DirectMessageDTO struct {
 	Sender     *User      `json:"sender,omitempty"`
 	Content    string     `json:"content"`
 	ReadAt     *time.Time `json:"read_at"`
+	Recalled   bool       `json:"recalled"`
+	RecalledBy uint       `json:"recalled_by"`
 	CreatedAt  time.Time  `json:"created_at"`
 }
 

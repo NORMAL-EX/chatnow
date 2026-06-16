@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoreHorizontal, Pencil, Trash2, MessageSquare, SmilePlus } from 'lucide-react'
+import { MoreHorizontal, Pencil, Undo2, MessageSquare, SmilePlus } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,23 +18,27 @@ import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/lib/toast'
 import { initials, formatTime } from '@/lib/format'
-import { ApiError } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import type { Message } from '@/lib/types'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢', '🔥', '👀']
 
 export function MessageItem({ message }: { message: Message }) {
   const { user } = useAuth()
-  const { toggleReaction, deleteMessage, editMessage, selectDm } = useChat()
+  const { toggleReaction, recallMessage, editMessage, selectDm } = useChat()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.content)
+  const [revealed, setRevealed] = useState<string | null>(null)
 
   const sender = message.sender
   const isOwn = sender?.id === user?.id
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
-  const canEdit = isOwn && !message.is_bot && !message.deleted
-  const canDelete = (isOwn || isAdmin) && !message.deleted
+  const isSuper = user?.role === 'super_admin'
+  const gone = message.deleted || message.recalled
+  const withinWindow = Date.now() - new Date(message.created_at).getTime() < 40_000
+  const canEdit = isOwn && !message.is_bot && !gone
+  const canRecall = !gone && (isAdmin || (isOwn && !message.is_bot && withinWindow))
 
   const onReact = async (emoji: string) => {
     try {
@@ -44,11 +48,20 @@ export function MessageItem({ message }: { message: Message }) {
     }
   }
 
-  const onDelete = async () => {
+  const onRecall = async () => {
     try {
-      await deleteMessage(message.id)
+      await recallMessage(message.id)
     } catch (e) {
-      toast.error('删除失败', e instanceof ApiError ? e.message : undefined)
+      toast.error('撤回失败', e instanceof ApiError ? e.message : undefined)
+    }
+  }
+
+  const onReveal = async () => {
+    try {
+      const { content } = await api.admin.revealMessage(message.id)
+      setRevealed(content)
+    } catch (e) {
+      toast.error('查看失败', e instanceof ApiError ? e.message : undefined)
     }
   }
 
@@ -94,7 +107,25 @@ export function MessageItem({ message }: { message: Message }) {
           {message.edited && <span className="text-muted-foreground text-xs">(已编辑)</span>}
         </div>
 
-        {message.deleted ? (
+        {message.recalled ? (
+          <div className="text-muted-foreground text-sm italic">
+            此消息已被撤回
+            {isSuper &&
+              (revealed === null ? (
+                <button
+                  type="button"
+                  onClick={onReveal}
+                  className="ml-2 text-primary not-italic hover:underline"
+                >
+                  点击查看
+                </button>
+              ) : (
+                <div className="mt-1 rounded-md border border-dashed border-border p-2 not-italic">
+                  <MarkdownContent content={revealed} />
+                </div>
+              ))}
+          </div>
+        ) : message.deleted ? (
           <p className="text-muted-foreground text-sm italic">(消息已删除)</p>
         ) : editing ? (
           <div className="mt-1 flex flex-col gap-2">
@@ -129,7 +160,7 @@ export function MessageItem({ message }: { message: Message }) {
           <MarkdownContent content={message.content} />
         )}
 
-        {message.reactions.length > 0 && !message.deleted && (
+        {message.reactions.length > 0 && !gone && (
           <div className="mt-1 flex flex-wrap gap-1">
             {message.reactions.map((r) => (
               <Button
@@ -147,7 +178,7 @@ export function MessageItem({ message }: { message: Message }) {
         )}
       </div>
 
-      {!message.deleted && !editing && (
+      {!gone && !editing && (
         <div className="flex items-start gap-1 self-start opacity-0 transition-opacity group-hover:opacity-100">
           <Popover>
             <PopoverTrigger
@@ -194,12 +225,12 @@ export function MessageItem({ message }: { message: Message }) {
                   编辑
                 </MenuItem>
               )}
-              {canDelete && (
+              {canRecall && (
                 <>
                   {(canEdit || (!isOwn && sender?.role !== 'bot')) && <MenuSeparator />}
-                  <MenuItem onClick={onDelete} variant="destructive" className="flex items-center gap-2">
-                    <Trash2 className="size-4" />
-                    删除
+                  <MenuItem onClick={onRecall} variant="destructive" className="flex items-center gap-2">
+                    <Undo2 className="size-4" />
+                    撤回
                   </MenuItem>
                 </>
               )}

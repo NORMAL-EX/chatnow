@@ -42,6 +42,8 @@ export interface Message {
   content: string
   edited: boolean
   deleted: boolean
+  recalled: boolean
+  recalled_by?: number
   is_bot: boolean
   mentions: number[]
   reactions: Reaction[]
@@ -55,6 +57,8 @@ export interface DirectMessage {
   sender?: User
   content: string
   read_at: string | null
+  recalled?: boolean
+  recalled_by?: number
   created_at: string
 }
 
@@ -149,6 +153,14 @@ export type WSInbound =
   | { type: 'chat_message'; message: Message; temp_id?: string }
   | { type: 'message_update'; message: Message }
   | { type: 'message_delete'; message_id: number; channel_id: number }
+  | { type: 'message_recalled'; message_id: number; channel_id: number; recalled_by: number }
+  | {
+      type: 'dm_recalled'
+      message_id: number
+      sender_id: number
+      receiver_id: number
+      recalled_by: number
+    }
   | { type: 'dm_message'; message: DirectMessage; temp_id?: string }
   | { type: 'mention'; mention: MentionNotice }
   | { type: 'presence'; online_user_ids: number[] }

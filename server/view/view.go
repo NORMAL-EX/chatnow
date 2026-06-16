@@ -123,15 +123,19 @@ func BuildMessageDTOs(db *gorm.DB, msgs []models.Message, viewerID uint) []model
 			ChannelID: m.ChannelID,
 			SenderID:  m.SenderID,
 			Sender:    senders[m.SenderID],
-			Content:   m.Content,
-			Edited:    m.Edited,
-			Deleted:   m.Deleted,
-			IsBot:     m.IsBot,
-			Mentions:  mentionMap[m.ID],
-			Reactions: []models.ReactionDTO{},
-			CreatedAt: m.CreatedAt,
+			Content:    m.Content,
+			Edited:     m.Edited,
+			Deleted:    m.Deleted,
+			Recalled:   m.Recalled,
+			RecalledBy: m.RecalledBy,
+			IsBot:      m.IsBot,
+			Mentions:   mentionMap[m.ID],
+			Reactions:  []models.ReactionDTO{},
+			CreatedAt:  m.CreatedAt,
 		}
-		if m.Deleted {
+		// Recalled/deleted content is never sent over the wire; super admins
+		// fetch the original on demand via the admin reveal endpoint.
+		if m.Deleted || m.Recalled {
 			dto.Content = ""
 		}
 		for _, emoji := range order[m.ID] {
@@ -153,13 +157,19 @@ func BuildMessageDTO(db *gorm.DB, m models.Message, viewerID uint) models.Messag
 
 func BuildDMDTO(db *gorm.DB, dm models.DirectMessage) models.DirectMessageDTO {
 	senders := loadUsers(db, []uint{dm.SenderID})
+	content := dm.Content
+	if dm.Recalled {
+		content = ""
+	}
 	return models.DirectMessageDTO{
 		ID:         dm.ID,
 		SenderID:   dm.SenderID,
 		ReceiverID: dm.ReceiverID,
 		Sender:     senders[dm.SenderID],
-		Content:    dm.Content,
+		Content:    content,
 		ReadAt:     dm.ReadAt,
+		Recalled:   dm.Recalled,
+		RecalledBy: dm.RecalledBy,
 		CreatedAt:  dm.CreatedAt,
 	}
 }

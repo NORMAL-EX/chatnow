@@ -227,6 +227,26 @@ func (h *Hub) BroadcastReaction(messageID, channelID uint, reactions []models.Re
 	}))
 }
 
+// BroadcastMessageRecall notifies everyone that a channel message was recalled.
+// No content is sent; super admins fetch the original via the reveal endpoint.
+func (h *Hub) BroadcastMessageRecall(messageID, channelID, recalledBy uint) {
+	h.broadcastAll(envelope("message_recalled", map[string]any{
+		"message_id": messageID, "channel_id": channelID, "recalled_by": recalledBy,
+	}))
+}
+
+// BroadcastDMRecall notifies both participants that a direct message was recalled.
+func (h *Hub) BroadcastDMRecall(senderID, receiverID, messageID, recalledBy uint) {
+	b := envelope("dm_recalled", map[string]any{
+		"message_id": messageID, "sender_id": senderID,
+		"receiver_id": receiverID, "recalled_by": recalledBy,
+	})
+	h.sendToUser(senderID, b)
+	if receiverID != senderID {
+		h.sendToUser(receiverID, b)
+	}
+}
+
 // ---- AI bot ----
 
 func (h *Hub) botCooldownOK() bool {
@@ -302,7 +322,7 @@ func (h *Hub) postBotDM(toUserID uint, content string) {
 
 func (h *Hub) buildChannelContext(channelID uint, runeLimit int) []ai.Message {
 	var msgs []models.Message
-	h.db.Where("channel_id = ? AND deleted = ?", channelID, false).
+	h.db.Where("channel_id = ? AND deleted = ? AND recalled = ?", channelID, false, false).
 		Order("id DESC").Limit(300).Find(&msgs)
 
 	var picked []models.Message
@@ -362,7 +382,7 @@ func (h *Hub) buildDMContext(userID uint, runeLimit int) []ai.Message {
 	h.db.Where(
 		"(sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)",
 		userID, h.botID, h.botID, userID,
-	).Order("id DESC").Limit(300).Find(&msgs)
+	).Where("recalled = ?", false).Order("id DESC").Limit(300).Find(&msgs)
 
 	var picked []models.DirectMessage
 	total := 0

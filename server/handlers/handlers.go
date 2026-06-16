@@ -86,7 +86,10 @@ func (h *H) RegisterRoutes(r *gin.Engine) {
 
 		authed.PATCH("/messages/:id", h.EditMessage)
 		authed.DELETE("/messages/:id", h.DeleteMessage)
+		authed.POST("/messages/:id/recall", h.RecallMessage)
 		authed.POST("/messages/:id/reactions", h.ToggleReaction)
+
+		authed.POST("/dm-messages/:id/recall", h.RecallDM)
 
 		authed.GET("/dm/conversations", h.Conversations)
 		authed.GET("/dm/:userId/messages", h.DMMessages)
@@ -129,6 +132,8 @@ func (h *H) RegisterRoutes(r *gin.Engine) {
 	super.Use(auth, middleware.SuperAdmin())
 	{
 		super.DELETE("/users/:id", h.SuperDeleteUser)
+		super.GET("/messages/:id", h.SuperGetMessage)
+		super.GET("/dm-messages/:id", h.SuperGetDM)
 	}
 
 	// WebSocket (JWT via ?token=).
