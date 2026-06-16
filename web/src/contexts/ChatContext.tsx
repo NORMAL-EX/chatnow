@@ -206,7 +206,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [myId],
   )
 
-  const { connected, send } = useChatSocket(handleEvent)
+  const resyncRef = useRef<() => void>(() => {})
+  const { connected, send } = useChatSocket({
+    onEvent: handleEvent,
+    onReconnect: () => resyncRef.current(),
+  })
 
   // refs to call latest versions inside the socket handler
   const refreshConversationsRef = useRef<() => Promise<void>>(async () => {})
@@ -245,6 +249,34 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       /* ignore */
     }
   }, [])
+
+  // Re-sync state after a dropped connection is restored (catch up missed data).
+  const resync = useCallback(() => {
+    void refreshChannels()
+    void refreshMembers()
+    void refreshConversations()
+    void refreshMentions()
+    const v = viewRef.current
+    if (v?.type === 'channel') {
+      api
+        .channelMessages(v.id)
+        .then((res) => {
+          setMessages(res.items)
+          setChannelHasMore(res.has_more)
+        })
+        .catch(() => {})
+    } else if (v?.type === 'dm') {
+      api
+        .dmMessages(v.userId)
+        .then((res) => {
+          setDmMessages(res.items)
+          setDmHasMore(res.has_more)
+        })
+        .catch(() => {})
+    }
+    toast.success('已重新连接')
+  }, [refreshChannels, refreshMembers, refreshConversations, refreshMentions])
+  resyncRef.current = resync
 
   // bootstrap once authenticated
   useEffect(() => {
