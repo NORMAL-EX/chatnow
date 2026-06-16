@@ -10,9 +10,12 @@ export interface User {
   nickname: string
   avatar_url: string
   bio: string
+  email?: string
+  email_verified?: boolean
   role: Role
   status: UserStatus
   rate_limit_per_min: number
+  muted_until?: string | null
   created_at: string
 }
 

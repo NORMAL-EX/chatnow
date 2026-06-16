@@ -179,6 +179,11 @@ export const api = {
         role?: Role
         rate_limit_per_min?: number
         nickname?: string
+        username?: string
+        email?: string
+        avatar_url?: string
+        password?: string
+        mute_minutes?: number
       },
     ) => request<User>('PATCH', `/admin/users/${id}`, b),
     deleteUser: (id: number) => request<void>('DELETE', `/admin/users/${id}`),

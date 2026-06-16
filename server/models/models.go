@@ -28,17 +28,25 @@ const (
 )
 
 type User struct {
-	ID              uint      `gorm:"primarykey" json:"id"`
-	Username        string    `gorm:"uniqueIndex;size:64;not null" json:"username"`
-	PasswordHash    string    `gorm:"size:255" json:"-"`
-	Nickname        string    `gorm:"size:64" json:"nickname"`
-	AvatarURL       string    `gorm:"size:512" json:"avatar_url"`
-	Bio             string    `gorm:"size:1024" json:"bio"`
-	Role            string    `gorm:"index;size:20;default:user" json:"role"`
-	Status          string    `gorm:"index;size:20;default:active" json:"status"`
-	RateLimitPerMin int       `gorm:"default:-1" json:"rate_limit_per_min"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"-"`
+	ID              uint       `gorm:"primarykey" json:"id"`
+	Username        string     `gorm:"uniqueIndex;size:64;not null" json:"username"`
+	PasswordHash    string     `gorm:"size:255" json:"-"`
+	Nickname        string     `gorm:"size:64" json:"nickname"`
+	AvatarURL       string     `gorm:"size:512" json:"avatar_url"`
+	Bio             string     `gorm:"size:1024" json:"bio"`
+	Email           string     `gorm:"size:255" json:"email,omitempty"`
+	EmailVerified   bool       `gorm:"default:false" json:"email_verified"`
+	Role            string     `gorm:"index;size:20;default:user" json:"role"`
+	Status          string     `gorm:"index;size:20;default:active" json:"status"`
+	RateLimitPerMin int        `gorm:"default:-1" json:"rate_limit_per_min"`
+	MutedUntil      *time.Time `json:"muted_until,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"-"`
+}
+
+// Muted reports whether the user is currently muted.
+func (u *User) Muted() bool {
+	return u.MutedUntil != nil && time.Now().Before(*u.MutedUntil)
 }
 
 type Setting struct {

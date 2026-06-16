@@ -169,6 +169,17 @@ export function MessageComposer() {
     )
   }
 
+  const mutedUntil = user?.muted_until ? new Date(user.muted_until) : null
+  if (mutedUntil && mutedUntil.getTime() > Date.now()) {
+    const forever = mutedUntil.getTime() - Date.now() > 10 * 365 * 24 * 3600 * 1000
+    return (
+      <div className="border-border border-t px-4 py-4 text-center text-destructive text-sm">
+        您已被管理员禁言,暂时无法发送消息
+        {!forever && `(至 ${mutedUntil.toLocaleString()})`}
+      </div>
+    )
+  }
+
   const disabled = !connected || cooldownLeft > 0
 
   return (

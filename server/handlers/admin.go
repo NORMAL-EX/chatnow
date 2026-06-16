@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"murmur/auth"
 	"murmur/middleware"
 	"murmur/models"
 	"murmur/settings"
@@ -67,7 +68,7 @@ func (h *H) AdminUsers(c *gin.Context) {
 	db.Order("id ASC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&users)
 	items := make([]models.User, 0, len(users))
 	for _, u := range users {
-		items = append(items, view.PublicUser(u))
+		items = append(items, view.FullUser(u))
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"items":     items,
@@ -83,6 +84,12 @@ type adminUserReq struct {
 	Role            *string `json:"role"`
 	RateLimitPerMin *int    `json:"rate_limit_per_min"`
 	Nickname        *string `json:"nickname"`
+	Username        *string `json:"username"`
+	Email           *string `json:"email"`
+	AvatarURL       *string `json:"avatar_url"`
+	Password        *string `json:"password"`
+	// MuteMinutes: >0 mute for N minutes, 0 unmute, <0 mute indefinitely.
+	MuteMinutes *int `json:"mute_minutes"`
 }
 
 func (h *H) AdminUpdateUser(c *gin.Context) {
@@ -161,6 +168,52 @@ func (h *H) AdminUpdateUser(c *gin.Context) {
 			updates["nickname"] = n
 		}
 	}
+	if req.Username != nil {
+		un := strings.TrimSpace(*req.Username)
+		if !usernameRe.MatchString(un) {
+			fail(c, http.StatusBadRequest, "bad_username", "用户名需为 3-32 位字母、数字或下划线")
+			return
+		}
+		if reservedUsernames[strings.ToLower(un)] {
+			fail(c, http.StatusBadRequest, "reserved", "该用户名被保留")
+			return
+		}
+		var cnt int64
+		h.DB.Model(&models.User{}).Where("LOWER(username) = ? AND id <> ?", strings.ToLower(un), id).Count(&cnt)
+		if cnt > 0 {
+			fail(c, http.StatusConflict, "exists", "用户名已被占用")
+			return
+		}
+		updates["username"] = un
+	}
+	if req.Email != nil {
+		updates["email"] = strings.TrimSpace(*req.Email)
+	}
+	if req.AvatarURL != nil {
+		updates["avatar_url"] = strings.TrimSpace(*req.AvatarURL)
+	}
+	if req.Password != nil && *req.Password != "" {
+		if len(*req.Password) < 6 {
+			fail(c, http.StatusBadRequest, "weak_password", "密码至少 6 位")
+			return
+		}
+		hash, herr := auth.HashPassword(*req.Password)
+		if herr != nil {
+			fail(c, http.StatusInternalServerError, "hash", "服务器错误")
+			return
+		}
+		updates["password_hash"] = hash
+	}
+	if req.MuteMinutes != nil {
+		switch {
+		case *req.MuteMinutes == 0:
+			updates["muted_until"] = nil
+		case *req.MuteMinutes < 0:
+			updates["muted_until"] = time.Now().AddDate(100, 0, 0)
+		default:
+			updates["muted_until"] = time.Now().Add(time.Duration(*req.MuteMinutes) * time.Minute)
+		}
+	}
 
 	if len(updates) > 0 {
 		h.DB.Model(&target).Updates(updates)
@@ -168,7 +221,7 @@ func (h *H) AdminUpdateUser(c *gin.Context) {
 	}
 	var fresh models.User
 	h.DB.First(&fresh, id)
-	c.JSON(http.StatusOK, view.PublicUser(fresh))
+	c.JSON(http.StatusOK, view.FullUser(fresh))
 }
 
 func (h *H) SuperDeleteUser(c *gin.Context) {
@@ -203,7 +256,7 @@ func (h *H) AdminRegistrations(c *gin.Context) {
 	h.DB.Where("status = ?", models.StatusPending).Order("id ASC").Find(&users)
 	out := make([]models.User, 0, len(users))
 	for _, u := range users {
-		out = append(out, view.PublicUser(u))
+		out = append(out, view.FullUser(u))
 	}
 	c.JSON(http.StatusOK, out)
 }

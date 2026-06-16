@@ -1,5 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
-import { MoreHorizontal, Ban, ShieldCheck, ShieldOff, Gauge, Trash2, Undo2 } from 'lucide-react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import {
+  MoreHorizontal,
+  Ban,
+  ShieldCheck,
+  ShieldOff,
+  Gauge,
+  Trash2,
+  Undo2,
+  Pencil,
+  MicOff,
+  Mic,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -65,6 +76,19 @@ function rateText(v: number) {
   return `${v}/分`
 }
 
+function isMuted(u: User) {
+  return !!u.muted_until && new Date(u.muted_until).getTime() > Date.now()
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-muted-foreground text-sm">{label}</span>
+      {children}
+    </div>
+  )
+}
+
 export default function UsersAdmin() {
   const { user: me } = useAuth()
   const isSuper = me?.role === 'super_admin'
@@ -76,6 +100,8 @@ export default function UsersAdmin() {
 
   const [rateUser, setRateUser] = useState<User | null>(null)
   const [deleteUser, setDeleteUser] = useState<User | null>(null)
+  const [editUser, setEditUser] = useState<User | null>(null)
+  const [muteUser, setMuteUser] = useState<User | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -156,6 +182,11 @@ export default function UsersAdmin() {
                     {u.status === 'active' && <Badge variant="outline">正常</Badge>}
                     {u.status === 'banned' && <Badge variant="destructive">已封禁</Badge>}
                     {u.status === 'pending' && <Badge variant="secondary">待审核</Badge>}
+                    {isMuted(u) && (
+                      <Badge variant="secondary" className="ml-1">
+                        禁言中
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="tabular-nums text-sm">{rateText(u.rate_limit_per_min)}</TableCell>
                   <TableCell className="text-right">
@@ -168,6 +199,10 @@ export default function UsersAdmin() {
                         }
                       />
                       <MenuPopup className="min-w-[170px] menu-popup-animated" align="end">
+                        <MenuItem className="flex items-center gap-2" onClick={() => setEditUser(u)}>
+                          <Pencil className="size-4" />
+                          编辑资料
+                        </MenuItem>
                         {u.status === 'banned' ? (
                           <MenuItem
                             className="flex items-center gap-2"
@@ -189,6 +224,20 @@ export default function UsersAdmin() {
                           <Gauge className="size-4" />
                           调整频率
                         </MenuItem>
+                        {isMuted(u) ? (
+                          <MenuItem
+                            className="flex items-center gap-2"
+                            onClick={() => act(() => api.admin.updateUser(u.id, { mute_minutes: 0 }))}
+                          >
+                            <Mic className="size-4" />
+                            解除禁言
+                          </MenuItem>
+                        ) : (
+                          <MenuItem className="flex items-center gap-2" onClick={() => setMuteUser(u)}>
+                            <MicOff className="size-4" />
+                            禁言
+                          </MenuItem>
+                        )}
                         {isSuper && u.role === 'user' && (
                           <MenuItem
                             className="flex items-center gap-2"
@@ -268,6 +317,28 @@ export default function UsersAdmin() {
         />
       )}
 
+      {editUser && (
+        <EditUserDialog
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSaved={() => {
+            setEditUser(null)
+            load()
+          }}
+        />
+      )}
+
+      {muteUser && (
+        <MuteDialog
+          user={muteUser}
+          onClose={() => setMuteUser(null)}
+          onSaved={() => {
+            setMuteUser(null)
+            load()
+          }}
+        />
+      )}
+
       <AlertDialog open={!!deleteUser} onOpenChange={(o) => !o && setDeleteUser(null)}>
         <AlertDialogPopup>
           <AlertDialogHeader>
@@ -290,6 +361,146 @@ export default function UsersAdmin() {
         </AlertDialogPopup>
       </AlertDialog>
     </div>
+  )
+}
+
+function EditUserDialog({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: User
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [username, setUsername] = useState(user.username)
+  const [nickname, setNickname] = useState(user.nickname)
+  const [email, setEmail] = useState(user.email || '')
+  const [avatar, setAvatar] = useState(user.avatar_url || '')
+  const [password, setPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await api.admin.updateUser(user.id, {
+        username: username.trim(),
+        nickname: nickname.trim(),
+        email: email.trim(),
+        avatar_url: avatar.trim(),
+        ...(password ? { password } : {}),
+      })
+      toast.success('已保存')
+      onSaved()
+    } catch (e) {
+      toast.error('保存失败', e instanceof ApiError ? e.message : undefined)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogPopup className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>编辑用户 · @{user.username}</DialogTitle>
+          <DialogDescription>修改该用户资料,留空密码则不更改。</DialogDescription>
+        </DialogHeader>
+        <DialogPanel className="flex flex-col gap-3">
+          <Field label="用户名">
+            <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+          </Field>
+          <Field label="昵称">
+            <Input value={nickname} onChange={(e) => setNickname(e.target.value)} />
+          </Field>
+          <Field label="邮箱">
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          <Field label="头像 URL">
+            <Input value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="/uploads/... 或 https://" />
+          </Field>
+          <Field label="重置密码(留空不改)">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="至少 6 位"
+            />
+          </Field>
+        </DialogPanel>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>取消</DialogClose>
+          <Button variant="default" onClick={save} disabled={saving}>
+            保存
+          </Button>
+        </DialogFooter>
+      </DialogPopup>
+    </Dialog>
+  )
+}
+
+const MUTE_OPTIONS = [
+  { label: '10 分钟', minutes: 10 },
+  { label: '1 小时', minutes: 60 },
+  { label: '1 天', minutes: 1440 },
+  { label: '7 天', minutes: 10080 },
+  { label: '永久', minutes: -1 },
+]
+
+function MuteDialog({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: User
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [minutes, setMinutes] = useState('60')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await api.admin.updateUser(user.id, { mute_minutes: Number(minutes) })
+      toast.success('已禁言')
+      onSaved()
+    } catch (e) {
+      toast.error('操作失败', e instanceof ApiError ? e.message : undefined)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogPopup className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>禁言 · @{user.username}</DialogTitle>
+          <DialogDescription>禁言期间该用户可浏览但不能发送消息。</DialogDescription>
+        </DialogHeader>
+        <DialogPanel>
+          <Select value={minutes} onValueChange={(v) => setMinutes(v as string)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {MUTE_OPTIONS.map((o) => (
+                <SelectItem key={o.minutes} value={String(o.minutes)}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        </DialogPanel>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>取消</DialogClose>
+          <Button variant="default" onClick={save} disabled={saving}>
+            确定禁言
+          </Button>
+        </DialogFooter>
+      </DialogPopup>
+    </Dialog>
   )
 }
 

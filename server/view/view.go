@@ -42,6 +42,7 @@ func ResolveUsers(db *gorm.DB, names []string) []models.User {
 
 func cleanUser(u models.User) models.User {
 	u.PasswordHash = ""
+	u.Email = "" // email is private; only self & admins see it (via FullUser)
 	return u
 }
 
@@ -174,7 +175,15 @@ func BuildDMDTO(db *gorm.DB, dm models.DirectMessage) models.DirectMessageDTO {
 	}
 }
 
-// PublicUser strips sensitive fields from a user for API responses.
+// PublicUser strips sensitive fields (password, email) for API responses shown
+// to other users.
 func PublicUser(u models.User) models.User {
 	return cleanUser(u)
+}
+
+// FullUser strips only the password hash, keeping the email. Use for the user
+// themselves and for admin views.
+func FullUser(u models.User) models.User {
+	u.PasswordHash = ""
+	return u
 }

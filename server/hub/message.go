@@ -68,6 +68,9 @@ func (h *Hub) PostChannelMessage(sender *models.User, channelID uint, content, t
 	if u.Status == models.StatusBanned {
 		return nil, newErr(http.StatusForbidden, "banned", "账号已被封禁")
 	}
+	if u.Muted() {
+		return nil, newErr(http.StatusForbidden, "muted", "您已被管理员禁言,暂时无法发送消息")
+	}
 	content = strings.TrimSpace(content)
 	if content == "" {
 		return nil, newErr(http.StatusBadRequest, "empty", "消息不能为空")
@@ -159,6 +162,9 @@ func (h *Hub) PostDirectMessage(sender *models.User, toID uint, content, tempID 
 	}
 	if u.Status == models.StatusBanned {
 		return nil, newErr(http.StatusForbidden, "banned", "账号已被封禁")
+	}
+	if u.Muted() {
+		return nil, newErr(http.StatusForbidden, "muted", "您已被管理员禁言,暂时无法发送消息")
 	}
 	if !h.st.GetBool(settings.AllowDM) && !u.IsPrivileged() {
 		return nil, newErr(http.StatusForbidden, "dm_disabled", "私信功能已关闭")

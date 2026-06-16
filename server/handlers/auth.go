@@ -90,7 +90,7 @@ func (h *H) Register(c *gin.Context) {
 		return
 	}
 	token, _ := auth.GenerateToken(h.Cfg.JWTSecret, u.ID, u.Role)
-	c.JSON(http.StatusOK, gin.H{"token": token, "user": view.PublicUser(u)})
+	c.JSON(http.StatusOK, gin.H{"token": token, "user": view.FullUser(u)})
 }
 
 type loginReq struct {
@@ -131,7 +131,7 @@ func (h *H) Login(c *gin.Context) {
 		return
 	}
 	token, _ := auth.GenerateToken(h.Cfg.JWTSecret, u.ID, u.Role)
-	c.JSON(http.StatusOK, gin.H{"token": token, "user": view.PublicUser(u)})
+	c.JSON(http.StatusOK, gin.H{"token": token, "user": view.FullUser(u)})
 }
 
 func (h *H) Logout(c *gin.Context) {
@@ -141,7 +141,7 @@ func (h *H) Logout(c *gin.Context) {
 
 func (h *H) Me(c *gin.Context) {
 	u := middleware.CurrentUser(c)
-	c.JSON(http.StatusOK, view.PublicUser(*u))
+	c.JSON(http.StatusOK, view.FullUser(*u))
 }
 
 type updateMeReq struct {
@@ -182,5 +182,5 @@ func (h *H) UpdateMe(c *gin.Context) {
 	}
 	var fresh models.User
 	h.DB.First(&fresh, u.ID)
-	c.JSON(http.StatusOK, view.PublicUser(fresh))
+	c.JSON(http.StatusOK, view.FullUser(fresh))
 }
