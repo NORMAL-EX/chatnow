@@ -324,8 +324,8 @@ func (h *H) AdminPutSettings(c *gin.Context) {
 			continue
 		}
 		strVal := stringifySetting(v)
-		// Never blank out the API key by accident; only update when non-empty.
-		if k == settings.AIAPIKey && strings.TrimSpace(strVal) == "" {
+		// Never blank out secrets by accident; only update when non-empty.
+		if (k == settings.AIAPIKey || k == settings.SMTPPassword) && strings.TrimSpace(strVal) == "" {
 			continue
 		}
 		updates[k] = strVal

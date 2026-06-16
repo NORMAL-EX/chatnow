@@ -7,6 +7,7 @@ const DEFAULTS: PublicSettings = {
   site_description: '实时聊天室',
   registration_open: true,
   registration_review: false,
+  registration_email_verify: false,
   allow_dm: true,
   max_message_length: 2000,
   announcement: '',

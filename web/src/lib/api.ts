@@ -94,8 +94,16 @@ async function request<T>(
 
 export const api = {
   // auth
-  register: (b: { username: string; password: string; nickname?: string }) =>
-    request<AuthResponse | { pending: true }>('POST', '/auth/register', b),
+  register: (b: { username: string; password: string; nickname?: string; email?: string }) =>
+    request<AuthResponse | { pending: true } | { email_verification: true; email: string }>(
+      'POST',
+      '/auth/register',
+      b,
+    ),
+  verifyEmail: (b: { username: string; code: string }) =>
+    request<AuthResponse | { pending: true }>('POST', '/auth/verify-email', b),
+  resendCode: (username: string) =>
+    request<{ ok: true }>('POST', '/auth/resend-code', { username }),
   login: (b: { username: string; password: string }) =>
     request<AuthResponse>('POST', '/auth/login', b),
   logout: () => request<void>('POST', '/auth/logout'),

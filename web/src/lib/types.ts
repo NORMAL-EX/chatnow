@@ -86,6 +86,7 @@ export interface PublicSettings {
   site_description: string
   registration_open: boolean
   registration_review: boolean
+  registration_email_verify: boolean
   allow_dm: boolean
   max_message_length: number
   announcement: string

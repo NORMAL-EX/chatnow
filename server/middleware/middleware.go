@@ -49,6 +49,10 @@ func Auth(cfg *config.Config, gdb *gorm.DB) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"code": "pending", "error": "账号待审核"})
 			return
 		}
+		if u.Status == models.StatusUnverified {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"code": "unverified", "error": "请先验证邮箱"})
+			return
+		}
 		if u.Role == models.RoleBot {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"code": "bot", "error": "机器人账号不可登录"})
 			return

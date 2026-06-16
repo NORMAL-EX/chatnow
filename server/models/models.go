@@ -12,9 +12,10 @@ const (
 
 // Statuses
 const (
-	StatusPending = "pending"
-	StatusActive  = "active"
-	StatusBanned  = "banned"
+	StatusUnverified = "unverified" // awaiting email verification
+	StatusPending    = "pending"    // awaiting admin approval
+	StatusActive     = "active"
+	StatusBanned     = "banned"
 )
 
 // RateLimit sentinels for User.RateLimitPerMin:
@@ -40,6 +41,8 @@ type User struct {
 	Status          string     `gorm:"index;size:20;default:active" json:"status"`
 	RateLimitPerMin int        `gorm:"default:-1" json:"rate_limit_per_min"`
 	MutedUntil      *time.Time `json:"muted_until,omitempty"`
+	VerifyCode      string     `gorm:"size:16" json:"-"`
+	VerifyExpires   *time.Time `json:"-"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"-"`
 }

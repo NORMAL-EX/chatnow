@@ -12,7 +12,8 @@ interface AuthContextType {
     username: string,
     password: string,
     nickname?: string,
-  ) => Promise<{ pending: boolean }>
+    email?: string,
+  ) => Promise<{ pending: boolean; emailVerification?: boolean }>
   logout: () => Promise<void>
   refresh: () => Promise<void>
   setUser: (u: User | null) => void
@@ -52,12 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const register = useCallback(
-    async (username: string, password: string, nickname?: string) => {
-      const res = await api.register({ username, password, nickname })
+    async (username: string, password: string, nickname?: string, email?: string) => {
+      const res = await api.register({ username, password, nickname, email })
       if ('token' in res) {
         setToken(res.token)
         setUser(res.user)
         return { pending: false }
+      }
+      if ('email_verification' in res) {
+        return { pending: false, emailVerification: true }
       }
       return { pending: true }
     },

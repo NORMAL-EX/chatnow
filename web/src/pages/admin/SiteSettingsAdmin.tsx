@@ -41,11 +41,19 @@ export default function SiteSettingsAdmin() {
         default_theme: get('default_theme') || 'system',
         registration_open: getBool('registration_open'),
         registration_review: getBool('registration_review'),
+        registration_email_verify: getBool('registration_email_verify'),
         allow_dm: getBool('allow_dm'),
         max_message_length: Number(get('max_message_length')) || 2000,
         rate_limit_messages: Number(get('rate_limit_messages')) || 10,
         rate_limit_window_seconds: Number(get('rate_limit_window_seconds')) || 30,
         rate_limit_admin_messages: Number(get('rate_limit_admin_messages')) || 60,
+        smtp_host: get('smtp_host'),
+        smtp_port: get('smtp_port') || '587',
+        smtp_from: get('smtp_from'),
+        smtp_from_name: get('smtp_from_name') || 'Murmur',
+        smtp_username: get('smtp_username'),
+        smtp_ssl: getBool('smtp_ssl'),
+        ...(get('smtp_password') ? { smtp_password: get('smtp_password') } : {}),
       })
       await refresh()
       toast.success('站点设置已保存')
@@ -109,8 +117,62 @@ export default function SiteSettingsAdmin() {
             <Switch checked={getBool('registration_review')} onCheckedChange={(v) => set('registration_review', String(v))} />
           </label>
           <label className="flex items-center justify-between">
+            <span className="text-sm">注册需邮箱验证(需先配置下方 SMTP)</span>
+            <Switch
+              checked={getBool('registration_email_verify')}
+              onCheckedChange={(v) => set('registration_email_verify', String(v))}
+            />
+          </label>
+          <label className="flex items-center justify-between">
             <span className="text-sm">允许私信</span>
             <Switch checked={getBool('allow_dm')} onCheckedChange={(v) => set('allow_dm', String(v))} />
+          </label>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">邮件 / SMTP</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <p className="text-muted-foreground text-sm">
+            用于发送注册验证码。开启「注册需邮箱验证」前请先填好并保存测试。
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label>SMTP 主机</Label>
+              <Input value={get('smtp_host')} onChange={(e) => set('smtp_host', e.target.value)} placeholder="smtp.example.com" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>端口</Label>
+              <Input value={get('smtp_port')} onChange={(e) => set('smtp_port', e.target.value)} placeholder="587 或 465" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>发件邮箱</Label>
+              <Input type="email" value={get('smtp_from')} onChange={(e) => set('smtp_from', e.target.value)} placeholder="no-reply@example.com" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>发件人名称</Label>
+              <Input value={get('smtp_from_name')} onChange={(e) => set('smtp_from_name', e.target.value)} placeholder="Murmur" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>用户名</Label>
+              <Input value={get('smtp_username')} onChange={(e) => set('smtp_username', e.target.value)} autoComplete="off" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>密码 / 授权码</Label>
+              <Input
+                type="password"
+                value={get('smtp_password')}
+                onChange={(e) => set('smtp_password', e.target.value)}
+                placeholder={raw.smtp_password_set === 'true' ? '已配置(留空不变)' : ''}
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+          <label className="flex items-center justify-between">
+            <span className="text-sm">使用隐式 TLS(端口 465;587 请关闭)</span>
+            <Switch checked={getBool('smtp_ssl')} onCheckedChange={(v) => set('smtp_ssl', String(v))} />
           </label>
         </CardContent>
       </Card>

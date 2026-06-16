@@ -62,6 +62,8 @@ func (h *H) RegisterRoutes(r *gin.Engine) {
 
 	// Public
 	api.POST("/auth/register", h.Register)
+	api.POST("/auth/verify-email", h.VerifyEmail)
+	api.POST("/auth/resend-code", h.ResendCode)
 	api.POST("/auth/login", h.Login)
 	api.GET("/settings", h.PublicSettings)
 

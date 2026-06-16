@@ -18,7 +18,16 @@ const (
 	SiteDescription   = "site_description"
 	RegistrationOpen  = "registration_open"
 	RegistrationRev   = "registration_review"
+	RegistrationMail  = "registration_email_verify"
 	AllowDM           = "allow_dm"
+
+	SMTPHost     = "smtp_host"
+	SMTPPort     = "smtp_port"
+	SMTPUsername = "smtp_username"
+	SMTPPassword = "smtp_password"
+	SMTPFrom     = "smtp_from"
+	SMTPFromName = "smtp_from_name"
+	SMTPSSL      = "smtp_ssl"
 	MaxMessageLength  = "max_message_length"
 	Announcement      = "announcement"
 	DefaultTheme      = "default_theme"
@@ -46,7 +55,16 @@ var Defaults = map[string]string{
 	SiteDescription:   "自托管实时聊天室",
 	RegistrationOpen:  "true",
 	RegistrationRev:   "false",
+	RegistrationMail:  "false",
 	AllowDM:           "true",
+
+	SMTPHost:     "",
+	SMTPPort:     "587",
+	SMTPUsername: "",
+	SMTPPassword: "",
+	SMTPFrom:     "",
+	SMTPFromName: "Murmur",
+	SMTPSSL:      "false",
 	MaxMessageLength:  "2000",
 	Announcement:      "",
 	DefaultTheme:      "system",
@@ -69,12 +87,12 @@ var Defaults = map[string]string{
 }
 
 // secretKeys are encrypted at rest and never returned in plaintext via the API.
-var secretKeys = map[string]bool{AIAPIKey: true}
+var secretKeys = map[string]bool{AIAPIKey: true, SMTPPassword: true}
 
 // publicKeys are exposed through the unauthenticated /api/settings endpoint.
 var publicKeys = []string{
-	SiteTitle, SiteDescription, RegistrationOpen, RegistrationRev, AllowDM,
-	MaxMessageLength, Announcement, DefaultTheme, BotName, BotAvatar,
+	SiteTitle, SiteDescription, RegistrationOpen, RegistrationRev, RegistrationMail,
+	AllowDM, MaxMessageLength, Announcement, DefaultTheme, BotName, BotAvatar,
 }
 
 func IsSecret(key string) bool { return secretKeys[key] }
@@ -213,7 +231,7 @@ func (s *Service) PublicMap() map[string]any {
 	m := map[string]any{}
 	for _, k := range publicKeys {
 		switch k {
-		case RegistrationOpen, RegistrationRev, AllowDM:
+		case RegistrationOpen, RegistrationRev, RegistrationMail, AllowDM:
 			m[k] = s.GetBool(k)
 		case MaxMessageLength:
 			m[k] = s.GetInt(k)
