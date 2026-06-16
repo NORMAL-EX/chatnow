@@ -1,17 +1,18 @@
-# Murmur — multi-stage image (frontend build + pure-Go backend + small runtime).
+# Murmur — multi-stage, multi-arch image (frontend build + pure-Go backend).
 #
 #   docker build -t murmur .
 #   docker compose up -d --build
+#   docker buildx build --platform linux/amd64,linux/arm64 -t murmur .
 #
-# Building behind a TLS-intercepting proxy?
-#   Drop your proxy root CA (PEM, *.crt) into ./docker/certs/ and build normally.
-#   Certificate verification stays ON; the CA is simply trusted. With no extra
-#   certs the directory is a no-op.
+# The frontend is built once on the native build platform; the Go binary is
+# cross-compiled per target arch, so multi-arch builds stay fast.
+#
+# Building behind a TLS-intercepting proxy? Drop your proxy root CA (PEM, *.crt)
+# into ./docker/certs/ and build normally (verification stays ON; empty = no-op).
 
-# ---- Stage 1: build the frontend ----
-FROM node:22-alpine AS web
+# ---- Stage 1: build the frontend (always native) ----
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 WORKDIR /web
-# Optional extra CAs (no-op when docker/certs only contains .gitkeep).
 COPY docker/certs/ /certs/
 RUN touch /etc/ssl/certs/extra-ca.pem \
  && (cat /certs/*.crt >> /etc/ssl/certs/extra-ca.pem 2>/dev/null || true)
@@ -21,18 +22,20 @@ RUN npm ci --no-audit --no-fund
 COPY web/ ./
 RUN npm run build
 
-# ---- Stage 2: build the Go server (pure Go, CGO disabled) ----
-FROM golang:1.25-alpine AS server
+# ---- Stage 2: build the Go server (native toolchain, cross-compiled output) ----
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS server
 WORKDIR /src
 COPY docker/certs/ /certs/
 RUN cat /certs/*.crt >> /etc/ssl/certs/ca-certificates.crt 2>/dev/null || true
-ENV CGO_ENABLED=0 GOOS=linux
+ARG TARGETOS
+ARG TARGETARCH
+ENV CGO_ENABLED=0
 COPY server/go.mod server/go.sum ./
 RUN go mod download
 COPY server/ ./
-RUN go build -trimpath -o /out/murmur .
+RUN GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags "-s -w" -o /out/murmur .
 
-# ---- Stage 3: minimal runtime ----
+# ---- Stage 3: minimal runtime (per target arch) ----
 FROM alpine:3.20
 COPY docker/certs/ /tmp/certs/
 RUN cat /tmp/certs/*.crt >> /etc/ssl/certs/ca-certificates.crt 2>/dev/null || true \

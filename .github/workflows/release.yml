@@ -1,0 +1,60 @@
+name: Release
+
+# 打 v* tag 时:交叉编译各平台自包含发行包(二进制 + 前端 dist),
+# 并创建 GitHub Release 附带自动生成的发布说明。
+# Docker 镜像由 docker-publish.yml 在同一 tag 上构建并推送到 GHCR。
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build frontend
+        run: cd web && npm ci && npm run build
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: server/go.sum
+
+      - name: Build release bundles
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            os="${t%/*}"; arch="${t#*/}"
+            ext=""; [ "$os" = "windows" ] && ext=".exe"
+            pkg="murmur_${GITHUB_REF_NAME}_${os}_${arch}"
+            mkdir -p "$pkg/web"
+            (cd server && CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+              go build -trimpath -ldflags "-s -w" -o "../$pkg/murmur${ext}" .)
+            cp -r web/dist "$pkg/web/dist"
+            cp server/.env.example "$pkg/" || true
+            cp README.md "$pkg/" || true
+            if [ "$os" = "windows" ]; then
+              (cd "$pkg" && zip -qr "../dist-release/${pkg}.zip" .)
+            else
+              tar -C "$pkg" -czf "dist-release/${pkg}.tar.gz" .
+            fi
+            rm -rf "$pkg"
+          done
+          ls -la dist-release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist-release/*
