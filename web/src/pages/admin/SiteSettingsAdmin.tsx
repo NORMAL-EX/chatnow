@@ -21,6 +21,7 @@ export default function SiteSettingsAdmin() {
   const { refresh } = useSettings()
   const [raw, setRaw] = useState<Record<string, string> | null>(null)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
 
   useEffect(() => {
     api.admin.getSettings().then(setRaw).catch(() => toast.error('加载失败'))
@@ -53,6 +54,8 @@ export default function SiteSettingsAdmin() {
         smtp_from_name: get('smtp_from_name') || 'Murmur',
         smtp_username: get('smtp_username'),
         smtp_ssl: getBool('smtp_ssl'),
+        mail_subject: get('mail_subject'),
+        mail_body: get('mail_body'),
         ...(get('smtp_password') ? { smtp_password: get('smtp_password') } : {}),
       })
       await refresh()
@@ -61,6 +64,24 @@ export default function SiteSettingsAdmin() {
       toast.error('保存失败', e instanceof ApiError ? e.message : undefined)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const onTest = async () => {
+    const to = get('smtp_from').trim()
+    if (!to) {
+      toast.error('请先填写并保存「发件邮箱」')
+      return
+    }
+    setTesting(true)
+    try {
+      const r = await api.admin.testSmtp(to)
+      if (r.ok) toast.success('测试邮件已发送', `已发往 ${to}，请查收`)
+      else toast.error('发送失败', r.message)
+    } catch (e) {
+      toast.error('发送失败', e instanceof ApiError ? e.message : undefined)
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -84,7 +105,7 @@ export default function SiteSettingsAdmin() {
             <Input value={get('site_description')} onChange={(e) => set('site_description', e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>公告(显示在聊天顶部,留空则隐藏)</Label>
+            <Label>公告（显示在聊天顶部，留空则隐藏）</Label>
             <Textarea rows={2} value={get('announcement')} onChange={(e) => set('announcement', e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -117,7 +138,7 @@ export default function SiteSettingsAdmin() {
             <Switch checked={getBool('registration_review')} onCheckedChange={(v) => set('registration_review', String(v))} />
           </label>
           <label className="flex items-center justify-between">
-            <span className="text-sm">注册需邮箱验证(需先配置下方 SMTP)</span>
+            <span className="text-sm">注册需邮箱验证（需先配置下方 SMTP）</span>
             <Switch
               checked={getBool('registration_email_verify')}
               onCheckedChange={(v) => set('registration_email_verify', String(v))}
@@ -165,15 +186,41 @@ export default function SiteSettingsAdmin() {
                 type="password"
                 value={get('smtp_password')}
                 onChange={(e) => set('smtp_password', e.target.value)}
-                placeholder={raw.smtp_password_set === 'true' ? '已配置(留空不变)' : ''}
+                placeholder={raw.smtp_password_set === 'true' ? '已配置（留空不变）' : ''}
                 autoComplete="new-password"
               />
             </div>
           </div>
           <label className="flex items-center justify-between">
-            <span className="text-sm">使用隐式 TLS(端口 465;587 请关闭)</span>
+            <span className="text-sm">使用隐式 TLS（端口 465；587 请关闭）</span>
             <Switch checked={getBool('smtp_ssl')} onCheckedChange={(v) => set('smtp_ssl', String(v))} />
           </label>
+          <div className="flex flex-col gap-1.5">
+            <Label>邮件主题模板（可用 {'{site}'} 与 {'{code}'}）</Label>
+            <Input
+              value={get('mail_subject')}
+              onChange={(e) => set('mail_subject', e.target.value)}
+              placeholder="{site} 注册验证码"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>邮件正文模板（可用 {'{site}'} 与 {'{code}'}）</Label>
+            <Textarea
+              rows={3}
+              value={get('mail_body')}
+              onChange={(e) => set('mail_body', e.target.value)}
+              placeholder="【{site}】您的注册验证码是 {code}，10 分钟内有效。"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={onTest} disabled={testing}>
+              {testing ? <Loader2 className="size-4 animate-spin" /> : null}
+              测试发送
+            </Button>
+            <span className="text-muted-foreground text-xs">
+              发往「发件邮箱」；请先「保存设置」，测试使用已保存的 SMTP 配置。
+            </span>
+          </div>
         </CardContent>
       </Card>
 
@@ -187,15 +234,15 @@ export default function SiteSettingsAdmin() {
             <Input type="number" value={get('max_message_length')} onChange={(e) => set('max_message_length', e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>普通用户:窗口内可发条数</Label>
+            <Label>普通用户：窗口内可发条数</Label>
             <Input type="number" value={get('rate_limit_messages')} onChange={(e) => set('rate_limit_messages', e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>频率窗口(秒)</Label>
+            <Label>频率窗口（秒）</Label>
             <Input type="number" value={get('rate_limit_window_seconds')} onChange={(e) => set('rate_limit_window_seconds', e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>管理员:窗口内可发条数</Label>
+            <Label>管理员：窗口内可发条数</Label>
             <Input type="number" value={get('rate_limit_admin_messages')} onChange={(e) => set('rate_limit_admin_messages', e.target.value)} />
           </div>
         </CardContent>
