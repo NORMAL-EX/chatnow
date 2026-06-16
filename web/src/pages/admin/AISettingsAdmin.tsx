@@ -114,11 +114,11 @@ export default function AISettingsAdmin() {
             <Switch checked={s.ai_allow_dm} onCheckedChange={(v) => set('ai_allow_dm', v)} />
           </label>
           <label className="flex items-center justify-between">
-            <span className="text-sm">机器人管群（允许 AI 调用工具禁言）</span>
+            <span className="text-sm">机器人工具（联网搜索 / 北京时间 / 管群禁言）</span>
             <Switch checked={tools} onCheckedChange={setTools} />
           </label>
           <p className="text-muted-foreground text-xs">
-            开启后，管理员/系统管理员可私信机器人让其禁言成员：系统管理员可禁管理员，管理员可禁普通成员，最长 60 天。
+            开启后 AI 可调用工具：任何人可让其查时间 / 联网搜索；禁言仅限管理员（系统管理员可禁管理员，管理员可禁普通成员，最长 60 天）。需模型支持 function calling。
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
