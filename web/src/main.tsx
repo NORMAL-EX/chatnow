@@ -7,18 +7,21 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { SettingsProvider } from '@/contexts/SettingsContext'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/toast'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <ToastProvider position="bottom-right">
-        <SettingsProvider>
-          <AuthProvider>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
-          </AuthProvider>
-        </SettingsProvider>
+        <TooltipProvider>
+          <SettingsProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <App />
+              </BrowserRouter>
+            </AuthProvider>
+          </SettingsProvider>
+        </TooltipProvider>
       </ToastProvider>
     </ThemeProvider>
   </StrictMode>,
