@@ -20,9 +20,14 @@ export default function AISettingsAdmin() {
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string; reply?: string } | null>(null)
+  const [tools, setTools] = useState(false)
 
   useEffect(() => {
     api.admin.getAISettings().then(setS).catch(() => toast.error('加载失败'))
+    api.admin
+      .getSettings()
+      .then((m) => setTools(m.ai_tools_enabled === 'true'))
+      .catch(() => {})
   }, [])
 
   const set = <K extends keyof AISettings>(key: K, value: AISettings[K]) =>
@@ -40,6 +45,7 @@ export default function AISettingsAdmin() {
       ai_context_char_limit: s.ai_context_char_limit,
       ai_cooldown_seconds: s.ai_cooldown_seconds,
       ai_allow_dm: s.ai_allow_dm,
+      ai_tools_enabled: tools,
       bot_name: s.bot_name,
       bot_avatar: s.bot_avatar,
     }
@@ -107,6 +113,13 @@ export default function AISettingsAdmin() {
             <span className="text-sm">允许在私信中触发</span>
             <Switch checked={s.ai_allow_dm} onCheckedChange={(v) => set('ai_allow_dm', v)} />
           </label>
+          <label className="flex items-center justify-between">
+            <span className="text-sm">机器人管群（允许 AI 调用工具禁言）</span>
+            <Switch checked={tools} onCheckedChange={setTools} />
+          </label>
+          <p className="text-muted-foreground text-xs">
+            开启后，管理员/系统管理员可私信机器人让其禁言成员：系统管理员可禁管理员，管理员可禁普通成员，最长 60 天。
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label>机器人名称</Label>
@@ -126,7 +139,7 @@ export default function AISettingsAdmin() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label>Base URL(OpenAI 兼容)</Label>
+            <Label>Base URL（OpenAI 兼容）</Label>
             <Input
               value={s.ai_base_url}
               onChange={(e) => set('ai_base_url', e.target.value)}
@@ -139,7 +152,7 @@ export default function AISettingsAdmin() {
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={s.ai_api_key_set ? '已配置(留空则保持不变)' : '未配置'}
+              placeholder={s.ai_api_key_set ? '已配置（留空则保持不变）' : '未配置'}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -147,7 +160,7 @@ export default function AISettingsAdmin() {
             <Input value={s.ai_model} onChange={(e) => set('ai_model', e.target.value)} placeholder="gpt-4o-mini" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>系统提示词(人设)</Label>
+            <Label>系统提示词（人设）</Label>
             <Textarea
               rows={4}
               value={s.ai_system_prompt}
@@ -189,7 +202,7 @@ export default function AISettingsAdmin() {
               onChange={(v) => set('ai_context_char_limit', v)}
             />
             <NumberRow
-              label="冷却时间(秒)"
+              label="冷却时间（秒）"
               value={s.ai_cooldown_seconds}
               onChange={(v) => set('ai_cooldown_seconds', v)}
             />
@@ -201,7 +214,7 @@ export default function AISettingsAdmin() {
         <Alert variant={testResult.ok ? 'success' : 'error'}>
           <AlertTitle>{testResult.ok ? '连接成功' : '连接失败'}</AlertTitle>
           <AlertDescription>
-            {testResult.reply ? `回复:${testResult.reply}` : testResult.message}
+            {testResult.reply ? `回复：${testResult.reply}` : testResult.message}
           </AlertDescription>
         </Alert>
       )}
