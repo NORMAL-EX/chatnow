@@ -22,6 +22,7 @@ export default function SiteSettingsAdmin() {
   const [raw, setRaw] = useState<Record<string, string> | null>(null)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [testTo, setTestTo] = useState('')
 
   useEffect(() => {
     api.admin.getSettings().then(setRaw).catch(() => toast.error('加载失败'))
@@ -68,15 +69,15 @@ export default function SiteSettingsAdmin() {
   }
 
   const onTest = async () => {
-    const to = get('smtp_from').trim()
+    const to = testTo.trim() || get('smtp_from').trim()
     if (!to) {
-      toast.error('请先填写并保存「发件邮箱」')
+      toast.error('请填写「测试收件邮箱」，或先填写并保存「发件邮箱」')
       return
     }
     setTesting(true)
     try {
       const r = await api.admin.testSmtp(to)
-      if (r.ok) toast.success('测试邮件已发送', `已发往 ${to}，请查收`)
+      if (r.ok) toast.success('测试邮件已发送', `已发往 ${to}，请查收（含垃圾箱）`)
       else toast.error('发送失败', r.message)
     } catch (e) {
       toast.error('发送失败', e instanceof ApiError ? e.message : undefined)
@@ -212,13 +213,23 @@ export default function SiteSettingsAdmin() {
               placeholder="【{site}】您的注册验证码是 {code}，10 分钟内有效。"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={onTest} disabled={testing}>
-              {testing ? <Loader2 className="size-4 animate-spin" /> : null}
-              测试发送
-            </Button>
+          <div className="flex flex-col gap-1.5">
+            <Label>测试收件邮箱</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="email"
+                value={testTo}
+                onChange={(e) => setTestTo(e.target.value)}
+                placeholder={get('smtp_from') ? `留空则发往 ${get('smtp_from')}` : 'you@example.com'}
+                className="flex-1"
+              />
+              <Button variant="outline" onClick={onTest} disabled={testing} className="shrink-0">
+                {testing ? <Loader2 className="size-4 animate-spin" /> : null}
+                测试发送
+              </Button>
+            </div>
             <span className="text-muted-foreground text-xs">
-              发往「发件邮箱」；请先「保存设置」，测试使用已保存的 SMTP 配置。
+              留空则发往「发件邮箱」自己。请先「保存设置」，测试使用已保存的 SMTP 配置。
             </span>
           </div>
         </CardContent>
